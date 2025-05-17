@@ -2,26 +2,25 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"lite-chat-go/cmd/api"
 	"lite-chat-go/config"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
-	mongoClient *mongo.Client
-	taskCollection *mongo.Collection
+	mongoClient    *mongo.Client
+	userCollection *mongo.Collection
 )
 
 func init() {
 	ctx := context.TODO()
 
 	dbUri := config.Envs.MongoUrl
+	dbName := config.Envs.Database
 	connectionOpts := options.Client().ApplyURI(dbUri)
 
 	mongoClient, err := mongo.Connect(ctx, connectionOpts)
@@ -37,17 +36,12 @@ func init() {
 	}
 
 	log.Println("MongoDB successfully connected")
+	userCollection = mongoClient.Database(dbName).Collection("users")
 }
 
 func main() {
-	db, err := 
-	r := mux.NewRouter()
-	r.HandleFunc("/", HomeHandler)
-	http.ListenAndServe(":8085", r)
+	server := api.NewAPIServer(userCollection, config.Envs.Database, config.Envs.Port)
+	if err := server.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
-
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Hello World")
-	json.NewEncoder(w).Encode("Hello World")
-}
-

@@ -1,48 +1,45 @@
 package api
 
 import (
-	"context"
+	"fmt"
+	"lite-chat-go/service/user"
+	"lite-chat-go/utils"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type APIServer struct {
-	addr string
-	db   *mongo.Database
+	userCollection *mongo.Collection
+	dbName         string
+	port           string
 }
 
-func NewAPIServer(addr string, dbURI string, dbName string) (*APIServer, error) {
-
-	clientOptions := options.Client().ApplyURI(dbURI)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	db := client.Database(dbName)
+func NewAPIServer(userCollection *mongo.Collection, dbName string, port string) *APIServer {
 
 	return &APIServer{
-		addr: addr,
-		db:   db,
-	}, nil
+		userCollection: userCollection,
+		dbName:         dbName,
+		port:           port,
+	}
 }
 
 func (s *APIServer) Run() error {
-	router := mux.NewRouter()
+	mainRouter := mux.NewRouter()
+	router := mainRouter.PathPrefix("/api").Subrouter()
+	router.HandleFunc("/health", s.healthCheck).Methods(http.MethodGet)
 
-	log.Println("Listening on", s.addr)
-	return http.ListenAndServe(s.addr, router)
+	//User route
+	userService := user.NewUserService(s.userCollection)
+	userRouter := router.PathPrefix("/user").Subrouter()
+	userService.RegisterRoutes(userRouter)
+
+	log.Println("Listening on", s.port)
+	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), router)
+}
+
+func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Status OK"})
 }
