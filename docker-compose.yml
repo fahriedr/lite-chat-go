@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8083
+      - GIN_MODE=release
+      - AIR_TMP_DIR=/app/tmp
+    volumes:
+      - /app/tmp
+      - ./:/app
+    restart: unless-stopped
+    command: ["air", "-c", ".air.toml"]
