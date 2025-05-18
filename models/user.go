@@ -20,7 +20,7 @@ type User struct {
 	Email         string             `bson:"email,omitempty" json:"email"`
 	Avatar        string             `bson:"avatar,omitempty" json:"avatar"`
 	EmailVerified bool               `bson:"email_verified,omitempty" json:"email_verified"`
-	Password      *string            `bson:"password,omitempty" json:"-"` // omit from JSON output
+	Password      *string            `bson:"password,omitempty" json:"-"`
 	GoogleId      *string            `bson:"google_id,omitempty" json:"google_id"`
 	GithubId      *string            `bson:"github_id,omitempty" json:"github_id"`
 	AccessToken   *string            `bson:"access_token,omitempty" json:"access_token"`
@@ -41,4 +41,12 @@ type UserRegisterPayload struct {
 type UserLoginPayload struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
+}
+
+type UserPublic struct {
+	ID       primitive.ObjectID `json:"id"`
+	Fullname string             `json:"fullname"`
+	Username string             `json:"username"`
+	Email    string             `json:"email"`
+	Avatar   string             `json:"avatar"`
 }

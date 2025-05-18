@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"lite-chat-go/types"
 	"math/rand"
 	"net/http"
 
@@ -22,13 +23,23 @@ func RandomString(length int) string {
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	fmt.Println(v, "v")
 	w.Header().Add("Content-Type", "Application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
 
-func WriteError(w http.ResponseWriter, status int, err error) {
-	WriteJSON(w, status, map[string]string{"error": err.Error()})
+func WriteError(w http.ResponseWriter, status int, err string) {
+	WriteJSON(
+		w,
+		status, map[string]types.CustomErrorResponse{
+			"error": {
+				Success:    false,
+				StatusCode: status,
+				Message:    err,
+			},
+		},
+	)
 }
 
 func ParseJSON(r *http.Request, payload any) error {

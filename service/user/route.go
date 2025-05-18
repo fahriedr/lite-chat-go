@@ -32,7 +32,45 @@ func (s *UserService) RegisterRoutes(router *mux.Router) {
 }
 
 func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Login"})
+
+	var ctx = r.Context()
+
+	var payload models.UserLoginPayload
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		log.Fatal(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var user models.User
+
+	filter := bson.M{
+		"email": payload.Email,
+	}
+
+	err = s.userCollection.FindOne(ctx, filter).Decode(&user)
+
+	if err != nil {
+		fmt.Println(err)
+		utils.WriteError(w, http.StatusNotFound, "Email or Password are incorrect")
+		return
+	}
+
+	if user.Password == nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Sprintf("Sign in with %s to continue", *user.Provider))
+		return
+	}
+
+	if !utils.CheckPasswordHash(payload.Password, *user.Password) {
+		fmt.Println(err)
+		utils.WriteError(w, http.StatusNotFound, "Email or Password are incorrect")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Login", "data": user})
 }
 
 func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +82,7 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Fatal(err)
-		utils.WriteError(w, http.StatusBadRequest, err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -52,7 +90,7 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Fatal(err)
-		utils.WriteError(w, http.StatusBadRequest, err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -60,14 +98,14 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"email": payload.Email, "username": payload.Username}
 	err = s.userCollection.FindOne(ctx, filter).Decode(&existingUser)
 
-	if err == nil {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", payload.Email))
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "User already exists")
 		return
 	}
 
 	hashedPassword, err := utils.HashPassword(payload.Password)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -90,7 +128,7 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	res, err := s.userCollection.InsertOne(ctx, doc)
 
 	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -103,25 +141,23 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	opts := options.FindOne().SetProjection(projection)
 
-	var insertedDoc models.User
+	var insertedDoc models.UserPublic
 
 	filter = bson.M{"_id": res.InsertedID}
 
 	err = s.userCollection.FindOne(ctx, filter, opts).Decode(&insertedDoc)
 
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(insertedDoc.ID.Hex(), insertedDoc.Email)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	insertedDoc.Password = nil
 
 	utils.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "Login successful",

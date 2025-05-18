@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"lite-chat-go/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -8,7 +9,7 @@ import (
 )
 
 // JWT secret key - should be stored in environment variables in production
-var jwtSecret = []byte("your-secret-key")
+var jwtSecret = []byte(config.Envs.JWTSecret)
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
