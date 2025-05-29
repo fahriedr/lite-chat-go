@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"lite-chat-go/config"
 	"lite-chat-go/models"
+	"lite-chat-go/types"
 	"lite-chat-go/utils"
 	"log"
 	"net/http"
@@ -29,6 +30,30 @@ func NewUserService(userCollection *mongo.Collection) *UserService {
 func (s *UserService) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/login", s.handleLogin).Methods(http.MethodPost)
 	router.HandleFunc("/register", s.handleRegister).Methods(http.MethodPost)
+	router.HandleFunc("/profile", utils.WithJwtAuth(s.profile)).Methods(http.MethodGet)
+}
+
+func (s *UserService) profile(w http.ResponseWriter, r *http.Request) {
+
+	var ctx = r.Context()
+
+	email := r.Context().Value(types.ContextKeyEmail).(string)
+
+	var user models.User
+
+	filter := bson.M{
+		"email": email,
+	}
+
+	err := s.userCollection.FindOne(ctx, filter).Decode(&user)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Login", "data": user})
 }
 
 func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +65,7 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -70,7 +95,17 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Login", "data": user})
+	token, err := utils.GenerateJWT(user.ID.Hex(), user.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]any{
+		"success": "Login",
+		"user":    user,
+		"token":   token,
+	})
 }
 
 func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +116,7 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -89,17 +124,30 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	err = utils.Validate.Struct(payload)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var existingUser models.User
-	filter := bson.M{"email": payload.Email, "username": payload.Username}
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"email": payload.Email},
+			{"username": payload.Username},
+		},
+	}
 	err = s.userCollection.FindOne(ctx, filter).Decode(&existingUser)
 
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, "User already exists")
+	if err == nil {
+		if existingUser.Email == payload.Email {
+			utils.WriteError(w, http.StatusBadRequest, fmt.Sprintf("user with email %s already exists", payload.Email))
+			return
+		}
+		utils.WriteError(w, http.StatusBadRequest, fmt.Sprintf("username %s is already taken", payload.Username))
+		return
+	} else if err != mongo.ErrNoDocuments {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

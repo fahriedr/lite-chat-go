@@ -1,11 +1,17 @@
 package utils
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"lite-chat-go/config"
+	"log"
+	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"lite-chat-go/types"
 )
 
 // JWT secret key - should be stored in environment variables in production
@@ -22,17 +28,17 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 type Claims struct {
-	UserID string `json:"userId"`
-	Email  string `json:"email"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID, email string) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
+func GenerateJWT(id, email string) (string, error) {
+	expirationTime := time.Now().Add(1 * time.Hour)
 
 	claims := &Claims{
-		UserID: userID,
-		Email:  email,
+		ID:    id,
+		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -58,4 +64,43 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func WithJwtAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := getTokenFromRequest(r)
+		token, err := ValidateJWT(tokenString)
+
+		if err != nil {
+			log.Printf("failed to validate token: %v", err)
+			permissionDenied(w)
+			return
+		}
+
+		fmt.Println(token.ID, "token")
+		ctx := context.WithValue(r.Context(), types.ContextKeyUserID, token.ID)
+		ctx = context.WithValue(ctx, types.ContextKeyEmail, token.Email)
+
+		handlerFunc(w, r.WithContext(ctx))
+	}
+}
+
+func getTokenFromRequest(r *http.Request) string {
+	tokenAuth := r.Header.Get("Authorization")
+
+	if tokenAuth != "" {
+		return tokenAuth
+	}
+
+	return ""
+}
+
+func permissionDenied(w http.ResponseWriter) {
+	writeError(w, http.StatusForbidden, fmt.Errorf("permission denied"))
+}
+
+func writeError(w http.ResponseWriter, statusCode int, err error) {
+	w.Header().Add("Content-Type", "Application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(err)
 }

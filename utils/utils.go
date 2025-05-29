@@ -23,7 +23,6 @@ func RandomString(length int) string {
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	fmt.Println(v, "v")
 	w.Header().Add("Content-Type", "Application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
