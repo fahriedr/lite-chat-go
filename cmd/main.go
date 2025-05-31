@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	mongoClient    *mongo.Client
-	userCollection *mongo.Collection
+	mongoClient            *mongo.Client
+	userCollection         *mongo.Collection
+	conversationCollection *mongo.Collection
 )
 
 func init() {
@@ -37,10 +38,11 @@ func init() {
 
 	log.Println("MongoDB successfully connected")
 	userCollection = mongoClient.Database(dbName).Collection("users")
+	conversationCollection = mongoClient.Database(dbName).Collection("conversations")
 }
 
 func main() {
-	server := api.NewAPIServer(userCollection, config.Envs.Database, config.Envs.Port)
+	server := api.NewAPIServer(userCollection, conversationCollection, config.Envs.Database, config.Envs.Port)
 	if err := server.Run(); err != nil {
 		log.Fatal(err)
 	}

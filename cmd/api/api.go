@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"lite-chat-go/service/conversation"
 	"lite-chat-go/service/user"
 	"lite-chat-go/utils"
 	"log"
@@ -12,17 +13,19 @@ import (
 )
 
 type APIServer struct {
-	userCollection *mongo.Collection
-	dbName         string
-	port           string
+	userCollection         *mongo.Collection
+	conversationCollection *mongo.Collection
+	dbName                 string
+	port                   string
 }
 
-func NewAPIServer(userCollection *mongo.Collection, dbName string, port string) *APIServer {
+func NewAPIServer(userCollection *mongo.Collection, conversationCollection *mongo.Collection, dbName string, port string) *APIServer {
 
 	return &APIServer{
-		userCollection: userCollection,
-		dbName:         dbName,
-		port:           port,
+		userCollection:         userCollection,
+		conversationCollection: conversationCollection,
+		dbName:                 dbName,
+		port:                   port,
 	}
 }
 
@@ -35,6 +38,10 @@ func (s *APIServer) Run() error {
 	userService := user.NewUserService(s.userCollection)
 	userRouter := router.PathPrefix("/user").Subrouter()
 	userService.RegisterRoutes(userRouter)
+
+	conversationService := conversation.NewConversationService(s.conversationCollection)
+	conversationRouter := router.PathPrefix("/conversations").Subrouter()
+	conversationService.RegisterRoutes(conversationRouter)
 
 	log.Println("Listening on", s.port)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), router)
