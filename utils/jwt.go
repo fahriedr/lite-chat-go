@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"time"
 
+	"lite-chat-go/types"
+
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"lite-chat-go/types"
 )
 
 // JWT secret key - should be stored in environment variables in production
@@ -77,7 +78,6 @@ func WithJwtAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		fmt.Println(token.ID, "token")
 		ctx := context.WithValue(r.Context(), types.ContextKeyUserID, token.ID)
 		ctx = context.WithValue(ctx, types.ContextKeyEmail, token.Email)
 

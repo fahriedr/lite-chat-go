@@ -14,11 +14,11 @@ type CustomErrorResponse struct {
 }
 
 type CustomSuccessResponse struct {
-	Message string                 `json:"message"`
-	Success bool                   `json:"success"`
-	Data    interface{}            `json:"data,omitempty"`
-	Status  int                    `json:"status,omitempty"`
-	Headers map[string]interface{} `json:"headers,omitempty"`
+	Message string                  `json:"message"`
+	Success bool                    `json:"success"`
+	Data    interface{}             `json:"data,omitempty"`
+	Status  int                     `json:"status,omitempty"`
+	Headers *map[string]interface{} `json:"headers,omitempty"`
 }
 
 type contextKey string
