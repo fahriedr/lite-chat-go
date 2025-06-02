@@ -2,8 +2,6 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"lite-chat-go/config"
 	"log"
 	"net/http"
@@ -96,11 +94,5 @@ func getTokenFromRequest(r *http.Request) string {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	writeError(w, http.StatusForbidden, fmt.Errorf("permission denied"))
-}
-
-func writeError(w http.ResponseWriter, statusCode int, err error) {
-	w.Header().Add("Content-Type", "Application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(err)
+	WriteError(w, http.StatusForbidden, "Access Denied")
 }
