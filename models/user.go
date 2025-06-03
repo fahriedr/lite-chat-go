@@ -19,13 +19,13 @@ type User struct {
 	Username      string             `bson:"username,omitempty" json:"username"`
 	Email         string             `bson:"email,omitempty" json:"email"`
 	Avatar        string             `bson:"avatar,omitempty" json:"avatar"`
-	EmailVerified bool               `bson:"email_verified,omitempty" json:"email_verified"`
+	EmailVerified bool               `bson:"IsEmailVerified,omitempty" json:"IsEmailVerified"`
 	Password      *string            `bson:"password,omitempty" json:"-"`
-	GoogleId      *string            `bson:"google_id,omitempty" json:"google_id"`
-	GithubId      *string            `bson:"github_id,omitempty" json:"github_id"`
-	AccessToken   *string            `bson:"access_token,omitempty" json:"access_token"`
+	GoogleId      *string            `bson:"googleId,omitempty" json:"googleId"`
+	GithubId      *string            `bson:"githubId,omitempty" json:"githubId"`
+	AccessToken   *string            `bson:"accessToken,omitempty" json:"accessToken"`
 	Provider      *AuthProvider      `bson:"provider,omitempty" json:"provider"`
-	IsActive      bool               `bson:"is_active,omitempty" json:"is_active"`
+	IsActive      bool               `bson:"isActive,omitempty" json:"isActive"`
 	CreatedAt     time.Time          `bson:"createdAt,omitempty" json:"createdAt"`
 	UpdatedAt     time.Time          `bson:"updatedAt,omitempty" json:"updatedAt"`
 }
@@ -35,7 +35,7 @@ type UserRegisterPayload struct {
 	Email           string `json:"email" validate:"required,email"`
 	Username        string `json:"username" validate:"required"`
 	Password        string `json:"password" validate:"required,min=3,max=130"`
-	ConfirmPassword string `json:"confirm_password" validate:"required,min=3,max=130"`
+	ConfirmPassword string `json:"confirmPassword" validate:"required,min=3,max=130"`
 }
 
 type UserLoginPayload struct {
@@ -44,7 +44,7 @@ type UserLoginPayload struct {
 }
 
 type UserPublic struct {
-	ID       primitive.ObjectID `json:"id"`
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
 	Fullname string             `json:"fullname"`
 	Username string             `json:"username"`
 	Email    string             `json:"email"`

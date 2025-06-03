@@ -48,7 +48,7 @@ func (s *APIServer) Run() error {
 	conversationService.RegisterRoutes(conversationRouter)
 
 	//Message route
-	messageService := message.NewMessageService(s.messageCollection, s.conversationCollection)
+	messageService := message.NewMessageService(s.messageCollection, s.conversationCollection, s.userCollection)
 	messageRouter := router.PathPrefix("/messages").Subrouter()
 	messageService.RegisterRoutes(messageRouter)
 

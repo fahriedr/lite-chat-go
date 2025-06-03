@@ -7,11 +7,16 @@ import (
 )
 
 type Message struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	SenderID   string             `bson:"senderId,omitempty" json:"senderId"`
-	ReceiverID string             `bson:"receiverId,omitempty" json:"receiverid"`
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+	SenderID   primitive.ObjectID `bson:"senderId,omitempty" json:"senderId"`
+	ReceiverID primitive.ObjectID `bson:"receiverId,omitempty" json:"receiverid"`
 	Message    string             `bson:"message,omitempty" json:"message"`
-	IsRead     bool               `bson:"isRead,omitempty" json:"isRead"`
+	IsRead     bool               `bson:"isRead" json:"isRead"`
 	CreatedAt  time.Time          `bson:"createdAt,omitempty" json:"createdAt"`
 	UpdatedAt  time.Time          `bson:"updatedAt,omitempty" json:"updatedAt"`
+}
+
+type MessagePayload struct {
+	UserId  string `json:"userId" validate:"required"`
+	Message string `json:"message" validate:"required"`
 }

@@ -1,10 +1,13 @@
 package message
 
 import (
+	"encoding/json"
 	"lite-chat-go/models"
 	"lite-chat-go/types"
 	"lite-chat-go/utils"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,34 +18,37 @@ import (
 type MessageService struct {
 	messageCollection      *mongo.Collection
 	conversationCollection *mongo.Collection
+	userCollection         *mongo.Collection
 }
 
-func NewMessageService(messageCollection *mongo.Collection, conversationCollection *mongo.Collection) *MessageService {
+func NewMessageService(messageCollection *mongo.Collection, conversationCollection *mongo.Collection, userCollection *mongo.Collection) *MessageService {
 	return &MessageService{
 		messageCollection:      messageCollection,
 		conversationCollection: conversationCollection,
+		userCollection:         userCollection,
 	}
 }
 
 func (s *MessageService) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/list/{receiver_id}", utils.WithJwtAuth(s.getMessage)).Methods(http.MethodGet)
+	router.HandleFunc("/send", utils.WithJwtAuth(s.sendMessage)).Methods(http.MethodPost)
 }
 
 func (s *MessageService) getMessage(w http.ResponseWriter, r *http.Request) {
 
 	var ctx = r.Context()
 
-	receiver_id := mux.Vars(r)["receiver_id"]
-	user_id := ctx.Value(types.ContextKeyUserID).(string)
+	receiverId := mux.Vars(r)["receiver_id"]
+	userId := ctx.Value(types.ContextKeyUserID).(string)
 
-	receiver_id_object, err := primitive.ObjectIDFromHex(receiver_id)
+	receiverIdObject, err := primitive.ObjectIDFromHex(receiverId)
 
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "User ID not found")
 		return
 	}
 
-	user_id_object, err := primitive.ObjectIDFromHex(user_id)
+	userIdObject, err := primitive.ObjectIDFromHex(userId)
 
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, " User ID not found")
@@ -52,7 +58,7 @@ func (s *MessageService) getMessage(w http.ResponseWriter, r *http.Request) {
 	pipeline := mongo.Pipeline{
 		bson.D{{Key: "$match", Value: bson.D{
 			{Key: "participants", Value: bson.D{
-				{Key: "$all", Value: bson.A{user_id_object, receiver_id_object}},
+				{Key: "$all", Value: bson.A{userIdObject, receiverIdObject}},
 			}},
 		}}},
 		bson.D{{Key: "$lookup", Value: bson.D{
@@ -89,5 +95,114 @@ func (s *MessageService) getMessage(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Success",
 		Data:    message,
+	})
+}
+
+func (s *MessageService) sendMessage(w http.ResponseWriter, r *http.Request) {
+	var ctx = r.Context()
+	userId, err := primitive.ObjectIDFromHex(ctx.Value(types.ContextKeyUserID).(string))
+
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var payload models.MessagePayload
+	err = json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = utils.Validate.Struct(payload)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	receiverObjectId, err := primitive.ObjectIDFromHex(payload.UserId)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Find receiver
+	var receiver models.User
+	err = s.userCollection.FindOne(ctx, bson.M{"_id": receiverObjectId}).Decode(&receiver)
+	if err == mongo.ErrNoDocuments {
+		utils.WriteError(w, http.StatusNotFound, "User not found")
+		return
+	} else if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	receiverId := receiver.ID.Hex() // or your custom getPlainId equivalent
+
+	if receiverId == userId.Hex() {
+		utils.WriteError(w, http.StatusBadRequest, "User Id not valid")
+		return
+	}
+
+	newMessage := models.Message{
+		SenderID:   userId,
+		ReceiverID: receiverObjectId,
+		Message:    payload.Message,
+		IsRead:     false,
+		CreatedAt:  time.Now(),
+	}
+
+	var conversation models.Conversation
+	filter := bson.M{"participants": bson.M{"$all": bson.A{userId, receiverObjectId}}}
+	err = s.conversationCollection.FindOne(ctx, filter).Decode(&conversation)
+
+	if err == mongo.ErrNoDocuments {
+		// Create new conversation
+		conversation = models.Conversation{
+			Participants: []primitive.ObjectID{userId, receiverObjectId},
+			UpdatedAt:    time.Now(),
+		}
+
+		result, err := s.conversationCollection.InsertOne(ctx, conversation)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		conversation.ID = result.InsertedID.(primitive.ObjectID)
+	} else if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Insert message
+	msgResult, err := s.messageCollection.InsertOne(ctx, newMessage)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	newMessage.ID = msgResult.InsertedID.(primitive.ObjectID)
+
+	// Update conversation with message reference
+	update := bson.M{
+		"$push": bson.M{"messages": msgResult.InsertedID},
+		"$set":  bson.M{"updatedAt": time.Now()},
+	}
+	_, err = s.conversationCollection.UpdateByID(ctx, conversation.ID, update)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, types.CustomSuccessResponse{
+		Message: "Success",
+		Status:  200,
+		Success: true,
+		Data:    newMessage,
 	})
 }

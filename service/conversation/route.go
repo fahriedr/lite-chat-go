@@ -82,5 +82,14 @@ func (s *ConversationService) getConversation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]any{"message": "Success", "data": conversations, "success": true})
+	utils.WriteJSON(
+		w,
+		http.StatusOK,
+		types.CustomSuccessResponse{
+			Message: "Success",
+			Status:  http.StatusOK,
+			Success: true,
+			Data:    conversations,
+		},
+	)
 }
