@@ -72,13 +72,13 @@ func (s *ConversationService) getConversation(w http.ResponseWriter, r *http.Req
 
 	cursor, err := s.conversationCollection.Aggregate(ctx, pipeline)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to fetch cursor"})
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	var conversations []models.ConversationWithSingleParticipant
 	if err := cursor.All(ctx, &conversations); err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to decode conversations"})
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

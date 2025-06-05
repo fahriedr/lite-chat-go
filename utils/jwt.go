@@ -5,6 +5,7 @@ import (
 	"lite-chat-go/config"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"lite-chat-go/types"
@@ -85,6 +86,8 @@ func WithJwtAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 
 func getTokenFromRequest(r *http.Request) string {
 	tokenAuth := r.Header.Get("Authorization")
+	splitToken := strings.Split(tokenAuth, "Bearer ")
+	tokenAuth = splitToken[1]
 
 	if tokenAuth != "" {
 		return tokenAuth

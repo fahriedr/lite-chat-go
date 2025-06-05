@@ -20,3 +20,7 @@ type MessagePayload struct {
 	UserId  string `json:"userId" validate:"required"`
 	Message string `json:"message" validate:"required"`
 }
+
+type UpdateMessagePayload struct {
+	MessageID string `json:"messageId" validate:"required"`
+}

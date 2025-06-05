@@ -32,6 +32,7 @@ func NewMessageService(messageCollection *mongo.Collection, conversationCollecti
 func (s *MessageService) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/list/{receiver_id}", utils.WithJwtAuth(s.getMessage)).Methods(http.MethodGet)
 	router.HandleFunc("/send", utils.WithJwtAuth(s.sendMessage)).Methods(http.MethodPost)
+	router.HandleFunc("/update-status", utils.WithJwtAuth(s.updateStatusMessage)).Methods(http.MethodPost)
 }
 
 func (s *MessageService) getMessage(w http.ResponseWriter, r *http.Request) {
@@ -205,4 +206,72 @@ func (s *MessageService) sendMessage(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Data:    newMessage,
 	})
+}
+
+func (s *MessageService) updateStatusMessage(w http.ResponseWriter, r *http.Request) {
+
+	var ctx = r.Context()
+
+	userId := ctx.Value(types.ContextKeyUserID).(string)
+
+	var payload models.UpdateMessagePayload
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = utils.Validate.Struct(payload)
+
+	if err != nil {
+		log.Println(err)
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	messageIdObject, err := primitive.ObjectIDFromHex(payload.MessageID)
+
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var message models.Message
+	err = s.messageCollection.FindOne(ctx, bson.M{"_id": messageIdObject}).Decode(&message)
+
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if userId != message.ReceiverID.Hex() {
+		utils.WriteError(w, http.StatusBadRequest, "Error processing data")
+		return
+	}
+
+	message.IsRead = true
+
+	update := bson.M{
+		"$set": bson.M{"isRead": true, "updatedAt": time.Now()},
+	}
+
+	data, err := s.messageCollection.UpdateByID(ctx, message.ID, update)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.WriteJSON(
+		w,
+		http.StatusOK,
+		types.CustomSuccessResponse{
+			Message: "Success Update message status",
+			Status:  http.StatusOK,
+			Success: true,
+			Data:    data,
+		},
+	)
 }
