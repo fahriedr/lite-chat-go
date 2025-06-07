@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -31,6 +32,7 @@ func (s *UserService) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/login", s.handleLogin).Methods(http.MethodPost)
 	router.HandleFunc("/register", s.handleRegister).Methods(http.MethodPost)
 	router.HandleFunc("/profile", utils.WithJwtAuth(s.profile)).Methods(http.MethodGet)
+	router.HandleFunc("/search/{query}", utils.WithJwtAuth(s.handleSearch)).Methods(http.MethodGet)
 }
 
 func (s *UserService) profile(w http.ResponseWriter, r *http.Request) {
@@ -212,4 +214,49 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"token":   token,
 		"user":    insertedDoc,
 	})
+}
+
+func (s *UserService) handleSearch(w http.ResponseWriter, r *http.Request) {
+	var ctx = r.Context()
+
+	querySearch := mux.Vars(r)["query"]
+	userId := ctx.Value(types.ContextKeyUserID).(string)
+	userIdObject, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, " User ID not found")
+		return
+	}
+
+	var user []models.UserPublic
+
+	filter := bson.M{
+		"_id": bson.M{"$ne": userIdObject},
+		"$or": []bson.M{
+			{"username": bson.M{"$regex": querySearch, "$options": "i"}},
+			{"email": bson.M{"$regex": querySearch, "$options": "i"}},
+		},
+	}
+
+	cursor, err := s.userCollection.Find(ctx, filter)
+
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err = cursor.All(ctx, &user); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.WriteJSON(
+		w,
+		http.StatusOK,
+		types.CustomSuccessResponse{
+			Message: "Success",
+			Status:  http.StatusOK,
+			Success: true,
+			Data:    user,
+		},
+	)
 }
