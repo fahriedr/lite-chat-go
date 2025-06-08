@@ -97,6 +97,14 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userPublic := models.UserPublic{
+		ID:       user.ID,
+		Fullname: user.Fullname,
+		Username: user.Username,
+		Email:    user.Email,
+		Avatar:   user.Avatar,
+	}
+
 	token, err := utils.GenerateJWT(user.ID.Hex(), user.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -105,7 +113,7 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, map[string]any{
 		"success": "Login",
-		"user":    user,
+		"user":    userPublic,
 		"token":   token,
 	})
 }
@@ -247,6 +255,10 @@ func (s *UserService) handleSearch(w http.ResponseWriter, r *http.Request) {
 	if err = cursor.All(ctx, &user); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	if user == nil {
+		user = []models.UserPublic{}
 	}
 
 	utils.WriteJSON(
