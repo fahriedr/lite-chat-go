@@ -31,12 +31,10 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 func WriteError(w http.ResponseWriter, status int, err string) {
 	WriteJSON(
 		w,
-		status, map[string]types.CustomErrorResponse{
-			"error": {
-				Success:    false,
-				StatusCode: status,
-				Message:    err,
-			},
+		status, types.CustomErrorResponse{
+			Success:    false,
+			StatusCode: status,
+			Message:    err,
 		},
 	)
 }

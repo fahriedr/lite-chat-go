@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -52,8 +53,16 @@ func (s *APIServer) Run() error {
 	messageRouter := router.PathPrefix("/messages").Subrouter()
 	messageService.RegisterRoutes(messageRouter)
 
+	// CORS config
+	allowedOrigins := handlers.AllowedOrigins([]string{"http://localhost:5173"})
+	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "Access-Control-Allow-Origin"})
+
+	// Apply CORS middleware
+	handler := handlers.CORS(allowedOrigins, allowedMethods, allowedHeaders)(mainRouter)
+
 	log.Println("Listening on", s.port)
-	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), router)
+	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), handler)
 }
 
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
