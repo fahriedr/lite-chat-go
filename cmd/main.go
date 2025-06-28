@@ -7,6 +7,7 @@ import (
 	"lite-chat-go/config"
 	"log"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -43,6 +44,42 @@ func init() {
 	userCollection = database.Collection("users")
 	conversationCollection = database.Collection("conversations")
 	messageCollection = database.Collection("messages")
+
+	// Drop existing googleId index if it exists
+	indexes, err := userCollection.Indexes().List(ctx)
+	if err != nil {
+		log.Fatalf("Error listing indexes: %v", err)
+	}
+
+	for indexes.Next(ctx) {
+		var index bson.M
+		if err := indexes.Decode(&index); err != nil {
+			log.Fatalf("Error decoding index: %v", err)
+		}
+		if key, ok := index["key"].(bson.M); ok {
+			if _, exists := key["googleId"]; exists {
+				if name, ok := index["name"].(string); ok {
+					fmt.Printf("Dropping index: %s\n", name)
+					if _, err := userCollection.Indexes().DropOne(ctx, name); err != nil {
+						log.Fatalf("Error dropping index: %v", err)
+					}
+				}
+			}
+		}
+	}
+
+	// Create sparse unique index on googleId
+	mod := mongo.IndexModel{
+		Keys: bson.D{{Key: "googleId", Value: 1}},
+		Options: options.Index().SetUnique(true).SetSparse(true).SetName("googleId_sparse_unique"),
+	}
+
+	_, err = userCollection.Indexes().CreateOne(ctx, mod)
+	if err != nil {
+		log.Fatalf("Failed to create sparse unique index on googleId: %v", err)
+	}
+
+	fmt.Println("✅ Sparse unique index on googleId created successfully")
 }
 
 func main() {

@@ -76,7 +76,7 @@ func (s *ConversationService) getConversation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var conversations []models.ConversationWithSingleParticipant
+	conversations :=  make([]models.ConversationWithSingleParticipant, 0)
 	if err := cursor.All(ctx, &conversations); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

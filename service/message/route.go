@@ -85,7 +85,7 @@ func (s *MessageService) getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var message []models.Message
+	message := make([]models.Message, 0)
 
 	if err := cursor.All(ctx, &message); err != nil {
 		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Cursor error"})
