@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/json"
+	"lite-chat-go/config"
 	"lite-chat-go/models"
 	"lite-chat-go/types"
 	"lite-chat-go/utils"
@@ -10,10 +11,19 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pusher/pusher-http-go/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+var client = pusher.Client{
+	AppID:   config.Envs.PusherAppID,
+	Key:     config.Envs.PusherKey,
+	Secret:  config.Envs.PusherSecret,
+	Cluster: config.Envs.PusherCluster,
+	Secure:  true,
+}
 
 type MessageService struct {
 	messageCollection      *mongo.Collection
@@ -199,6 +209,8 @@ func (s *MessageService) sendMessage(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	client.Trigger("lite-chat", "upcoming-message", newMessage)
 
 	utils.WriteJSON(w, http.StatusOK, types.CustomSuccessResponse{
 		Message: "Success",

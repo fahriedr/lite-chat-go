@@ -14,6 +14,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/pusher/pusher-http-go/v5 v5.1.1 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 )

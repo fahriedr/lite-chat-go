@@ -14,6 +14,10 @@ type Config struct {
 	JWTExpirationInSeconds int64
 	JWTSecret              string
 	Robohash               string
+	PusherAppID            string
+	PusherKey              string
+	PusherSecret           string
+	PusherCluster          string
 }
 
 var Envs = initConfig()
@@ -27,6 +31,10 @@ func initConfig() Config {
 		JWTSecret:              getEnv("JWT_SECRET", "not-secret-secret-anymore?"),
 		JWTExpirationInSeconds: getEnvInt("JWT_EXP", 3600*24*7),
 		Robohash:               getEnv("ROBOHASH_URL", ""),
+		PusherAppID:            getEnv("PUSHER_APP_ID", ""),
+		PusherKey:              getEnv("PUSHER_KEY", ""),
+		PusherSecret:           getEnv("PUSHER_SECRET", ""),
+		PusherCluster:          getEnv("PUSHER_CLUSTER", ""),
 	}
 
 }
