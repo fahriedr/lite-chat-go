@@ -9,9 +9,11 @@ import (
 	"lite-chat-go/utils"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/markbates/goth/gothic"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -33,6 +35,8 @@ func (s *UserService) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/register", s.handleRegister).Methods(http.MethodPost)
 	router.HandleFunc("/profile", utils.WithJwtAuth(s.profile)).Methods(http.MethodGet)
 	router.HandleFunc("/search/{query}", utils.WithJwtAuth(s.handleSearch)).Methods(http.MethodGet)
+	router.HandleFunc("/auth/{provider}", gothic.BeginAuthHandler)
+	router.HandleFunc("/auth/{provider}/callback", s.handleAuthProviderCallback).Methods(http.MethodGet, http.MethodPost)
 }
 
 func (s *UserService) profile(w http.ResponseWriter, r *http.Request) {
@@ -271,4 +275,166 @@ func (s *UserService) handleSearch(w http.ResponseWriter, r *http.Request) {
 			Data:    user,
 		},
 	)
+}
+
+func (s *UserService) handleAuthProviderCallback(w http.ResponseWriter, r *http.Request) {
+	userGoth, err := gothic.CompleteUserAuth(w, r)
+	ctx := r.Context()
+
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var existingUser models.User
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"email": userGoth.Email},
+		},
+	}
+
+	err = s.userCollection.FindOne(ctx, filter).Decode(&existingUser)
+
+	provider := userGoth.Provider
+	providerId := userGoth.UserID
+
+	if err != nil {
+
+		username := utils.EmailToUsername(userGoth.Email)
+
+		doc := models.User{
+			Fullname:      userGoth.Name,
+			Email:         userGoth.Email,
+			Username:      username,
+			Avatar:        config.Envs.Robohash + username,
+			Password:      nil,
+			Provider:      (*models.AuthProvider)(&userGoth.Provider),
+			EmailVerified: true,
+			IsActive:      true,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+
+		switch provider {
+		case "google":
+			doc.GoogleId = &providerId
+		case "github":
+			doc.GithubId = &providerId
+		default:
+			utils.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		res, err := s.userCollection.InsertOne(ctx, doc)
+
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		projection := bson.M{
+			"fullname": 1,
+			"username": 1,
+			"email":    1,
+			"avatar":   1,
+		}
+
+		opts := options.FindOne().SetProjection(projection)
+
+		var insertedDoc models.UserPublic
+
+		filter = bson.M{"_id": res.InsertedID}
+
+		err = s.userCollection.FindOne(ctx, filter, opts).Decode(&insertedDoc)
+
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Generate JWT token
+		token, err := utils.GenerateJWT(insertedDoc.ID.Hex(), insertedDoc.Email)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		utils.WriteJSON(w, http.StatusOK, map[string]any{
+			"message": "Login successful",
+			"token":   token,
+			"user":    insertedDoc,
+		})
+	} else {
+
+		updated := false
+
+		if existingUser.Provider != (*models.AuthProvider)(&userGoth.Provider) {
+			if provider == "google" {
+				existingUser.GoogleId = &providerId
+			} else {
+				existingUser.GithubId = &providerId
+			}
+			updated = true
+		}
+
+		if updated {
+			update := bson.M{
+				"$set": bson.M{"EmailVerified": true, "updatedAt": time.Now()},
+			}
+
+			switch provider {
+			case "google":
+				userGoth.Provider = "GoogleId"
+			case "github":
+				userGoth.Provider = "GithubId"
+			}
+
+			update["$set"].(bson.M)[userGoth.Provider] = providerId
+
+			_, err := s.userCollection.UpdateByID(ctx, existingUser.ID, update)
+
+			if err != nil {
+				utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("unsupported provider: %s", provider))
+				return
+			}
+
+			// Generate JWT token
+			token, err := utils.GenerateJWT(existingUser.ID.Hex(), existingUser.Email)
+			if err != nil {
+				utils.WriteError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			var insertedDoc models.UserPublic
+
+			filter = bson.M{"_id": existingUser.ID}
+			projection := bson.M{
+				"fullname": 1,
+				"username": 1,
+				"email":    1,
+				"avatar":   1,
+			}
+
+			opts := options.FindOne().SetProjection(projection)
+
+			err = s.userCollection.FindOne(ctx, filter, opts).Decode(&insertedDoc)
+
+			if err != nil {
+				utils.WriteError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			userJSON, err := json.Marshal(insertedDoc)
+			if err != nil {
+				http.Error(w, "failed to encode user", http.StatusInternalServerError)
+				return
+			}
+
+			encodedUser := url.QueryEscape(string(userJSON))
+
+			http.Redirect(w, r, fmt.Sprintf("%s/oauth/callback?token=%s&user=%s", config.Envs.ClientBaseUrl, token, encodedUser), http.StatusFound)
+		}
+
+	}
 }

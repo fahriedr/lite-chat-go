@@ -18,6 +18,13 @@ type Config struct {
 	PusherKey              string
 	PusherSecret           string
 	PusherCluster          string
+	GoogleClientID         string
+	GoogleClientSecret     string
+	GithubId               string
+	GithubSecret           string
+	SessionSecret          string
+	BaseUrl                string
+	ClientBaseUrl          string
 }
 
 var Envs = initConfig()
@@ -35,6 +42,13 @@ func initConfig() Config {
 		PusherKey:              getEnv("PUSHER_KEY", ""),
 		PusherSecret:           getEnv("PUSHER_SECRET", ""),
 		PusherCluster:          getEnv("PUSHER_CLUSTER", ""),
+		GoogleClientID:         getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:     getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GithubId:               getEnv("GITHUB_ID", ""),
+		GithubSecret:           getEnv("GITHUB_SECRET", ""),
+		SessionSecret:          getEnv("SESSION_SECRET", ""),
+		BaseUrl:                getEnv("BASE_URL", ""),
+		ClientBaseUrl:          getEnv("CLIENT_BASE_URL", ""),
 	}
 
 }

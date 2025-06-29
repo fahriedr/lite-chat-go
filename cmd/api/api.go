@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"lite-chat-go/config"
 	"lite-chat-go/service/conversation"
 	"lite-chat-go/service/message"
 	"lite-chat-go/service/user"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/gothic"
+	"github.com/markbates/goth/providers/github"
+	"github.com/markbates/goth/providers/google"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -21,6 +27,8 @@ type APIServer struct {
 	dbName                 string
 	port                   string
 }
+
+var store = sessions.NewCookieStore([]byte(config.Envs.SessionSecret))
 
 func NewAPIServer(userCollection *mongo.Collection, conversationCollection *mongo.Collection, messageCollection *mongo.Collection, dbName string, port string) *APIServer {
 
@@ -34,6 +42,12 @@ func NewAPIServer(userCollection *mongo.Collection, conversationCollection *mong
 }
 
 func (s *APIServer) Run() error {
+	gothic.Store = store
+	goth.UseProviders(
+		google.New(config.Envs.GoogleClientID, config.Envs.GoogleClientSecret, fmt.Sprintf("%s/api/user/auth/google/callback", config.Envs.BaseUrl), "email", "profile"),
+		github.New(config.Envs.GithubId, config.Envs.GithubSecret, fmt.Sprintf("%s/api/user/auth/github/callback", config.Envs.BaseUrl), "user:email"),
+	)
+
 	mainRouter := mux.NewRouter()
 	router := mainRouter.PathPrefix("/api").Subrouter()
 	router.HandleFunc("/health", s.healthCheck).Methods(http.MethodGet)

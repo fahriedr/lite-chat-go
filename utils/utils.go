@@ -6,6 +6,7 @@ import (
 	"lite-chat-go/types"
 	"math/rand"
 	"net/http"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -45,4 +46,21 @@ func ParseJSON(r *http.Request, payload any) error {
 	}
 
 	return json.NewDecoder(r.Body).Decode(payload)
+}
+
+func EmailToUsername(email string) string {
+	parts := strings.Split(email, "@")
+	localPart := parts[0]
+	randomDigits := rand.Intn(9000) + 1000
+
+	return fmt.Sprintf("%s%d", localPart, randomDigits)
+}
+
+func MapToJSON(data map[string]interface{}) (string, error) {
+	// Marshal the map to JSON
+	jsonBytes, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes), nil
 }
