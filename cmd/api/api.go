@@ -68,7 +68,7 @@ func (s *APIServer) Run() error {
 	messageService.RegisterRoutes(messageRouter)
 
 	// CORS config
-	allowedOrigins := handlers.AllowedOrigins([]string{"http://localhost:5173"})
+	allowedOrigins := handlers.AllowedOrigins([]string{config.Envs.ClientBaseUrl})
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "Access-Control-Allow-Origin"})
 
