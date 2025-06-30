@@ -360,11 +360,16 @@ func (s *UserService) handleAuthProviderCallback(w http.ResponseWriter, r *http.
 			return
 		}
 
-		utils.WriteJSON(w, http.StatusOK, map[string]any{
-			"message": "Login successful",
-			"token":   token,
-			"user":    insertedDoc,
-		})
+		userJSON, err := json.Marshal(insertedDoc)
+		if err != nil {
+			http.Error(w, "failed to encode user", http.StatusInternalServerError)
+			return
+		}
+
+		encodedUser := url.QueryEscape(string(userJSON))
+
+		http.Redirect(w, r, fmt.Sprintf("%s/oauth/callback?token=%s&user=%s", config.Envs.ClientBaseUrl, token, encodedUser), http.StatusFound)
+
 	} else {
 
 		updated := false
