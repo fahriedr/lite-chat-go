@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"lite-chat-go/internal/testutils"
 	"lite-chat-go/models"
 	"lite-chat-go/types"
-	"lite-chat-go/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -280,11 +278,11 @@ func TestUserService_Profile(t *testing.T) {
 
 		t.Run("Valid profile request", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-			
+
 			// Add user context (simulating JWT middleware)
 			ctx := context.WithValue(req.Context(), types.ContextKeyEmail, testUser.Email)
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			userService.profile(w, req)
@@ -296,7 +294,7 @@ func TestUserService_Profile(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, "Login", response["message"])
-			
+
 			userData := response["data"].(map[string]interface{})
 			assert.Equal(t, testUser.Email, userData["email"])
 			assert.Equal(t, testUser.Username, userData["username"])
@@ -305,11 +303,11 @@ func TestUserService_Profile(t *testing.T) {
 
 		t.Run("User not found", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-			
+
 			// Add non-existent user context
 			ctx := context.WithValue(req.Context(), types.ContextKeyEmail, "nonexistent@example.com")
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			userService.profile(w, req)
@@ -339,11 +337,11 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/user1", nil)
-			
+
 			// Add searcher context (exclude this user from results)
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, testUser3.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -355,10 +353,10 @@ func TestUserService_Search(t *testing.T) {
 
 			assert.True(t, response.Success)
 			assert.Equal(t, "Success", response.Message)
-			
+
 			users := response.Data.([]interface{})
 			assert.Len(t, users, 1)
-			
+
 			foundUser := users[0].(map[string]interface{})
 			assert.Equal(t, testUser1.Username, foundUser["username"])
 		})
@@ -368,10 +366,10 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/user2@example.com", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, testUser3.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -382,10 +380,10 @@ func TestUserService_Search(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			users := response.Data.([]interface{})
 			assert.Len(t, users, 1)
-			
+
 			foundUser := users[0].(map[string]interface{})
 			assert.Equal(t, testUser2.Email, foundUser["email"])
 		})
@@ -395,10 +393,10 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/user", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, testUser3.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -409,7 +407,7 @@ func TestUserService_Search(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			users := response.Data.([]interface{})
 			assert.Len(t, users, 2) // Should find user1 and user2, but not searcher
 		})
@@ -419,10 +417,10 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/searcher", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, testUser3.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -433,7 +431,7 @@ func TestUserService_Search(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			users := response.Data.([]interface{})
 			assert.Len(t, users, 0) // Should not find the current user
 		})
@@ -443,10 +441,10 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/nonexistent", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, testUser3.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -457,7 +455,7 @@ func TestUserService_Search(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			users := response.Data.([]interface{})
 			assert.Len(t, users, 0)
 		})
@@ -467,10 +465,10 @@ func TestUserService_Search(t *testing.T) {
 			router.HandleFunc("/search/{query}", userService.handleSearch).Methods(http.MethodGet)
 
 			req := httptest.NewRequest(http.MethodGet, "/search/test", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, "invalid-id")
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 

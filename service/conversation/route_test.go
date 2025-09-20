@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"lite-chat-go/internal/testutils"
-	"lite-chat-go/models"
 	"lite-chat-go/types"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +32,7 @@ func TestConversationService_GetConversation(t *testing.T) {
 			[]primitive.ObjectID{user1.ID, user2.ID},
 			[]primitive.ObjectID{message1.ID, message2.ID},
 		)
+
 		conv2, _ := testDB.CreateTestConversation(
 			[]primitive.ObjectID{user1.ID, user3.ID},
 			[]primitive.ObjectID{message3.ID},
@@ -40,11 +40,11 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 		t.Run("Get conversations for user1", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			// Add user context
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, user1.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -57,7 +57,7 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 			assert.True(t, response.Success)
 			assert.Equal(t, "Success", response.Message)
-			
+
 			conversations := response.Data.([]interface{})
 			assert.Len(t, conversations, 2) // user1 has 2 conversations
 
@@ -79,10 +79,10 @@ func TestConversationService_GetConversation(t *testing.T) {
 			user4, _ := testDB.CreateTestUser("user4@example.com", "user4", "User Four")
 
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, user4.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -94,17 +94,17 @@ func TestConversationService_GetConversation(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			conversations := response.Data.([]interface{})
 			assert.Len(t, conversations, 0) // No conversations
 		})
 
 		t.Run("Invalid user ID in context", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, "invalid-user-id")
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -114,10 +114,10 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 		t.Run("Verify conversation filtering", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, user2.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -129,13 +129,13 @@ func TestConversationService_GetConversation(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.True(t, response.Success)
-			
+
 			conversations := response.Data.([]interface{})
 			assert.Len(t, conversations, 1) // user2 has only 1 conversation (with user1)
 
 			conv := conversations[0].(map[string]interface{})
 			participant := conv["participants"].(map[string]interface{})
-			
+
 			// Verify the participant is user1 (not user2)
 			assert.Equal(t, user1.ID.Hex(), participant["_id"].(string))
 			assert.Equal(t, user1.Username, participant["username"])
@@ -143,10 +143,10 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 		t.Run("Verify messages are included", func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, user1.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -164,7 +164,7 @@ func TestConversationService_GetConversation(t *testing.T) {
 			for _, convInterface := range conversations {
 				conv := convInterface.(map[string]interface{})
 				messages := conv["messages"].([]interface{})
-				
+
 				// Each conversation should have at least one message (last message)
 				if len(messages) > 0 {
 					msg := messages[0].(map[string]interface{})
@@ -178,17 +178,17 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 		// Clean up test data
 		testDB.ClearCollections()
-		
+
 		// Test edge case with empty conversation collection
 		t.Run("Empty conversation collection", func(t *testing.T) {
 			// Create a user but no conversations
 			userEmpty, _ := testDB.CreateTestUser("empty@example.com", "emptyuser", "Empty User")
-			
+
 			req := httptest.NewRequest(http.MethodGet, "/conversations", nil)
-			
+
 			ctx := context.WithValue(req.Context(), types.ContextKeyUserID, userEmpty.ID.Hex())
 			req = req.WithContext(ctx)
-			
+
 			w := httptest.NewRecorder()
 
 			conversationService.getConversation(w, req)
@@ -201,7 +201,7 @@ func TestConversationService_GetConversation(t *testing.T) {
 
 			assert.True(t, response.Success)
 			assert.Equal(t, "Success", response.Message)
-			
+
 			conversations := response.Data.([]interface{})
 			assert.Len(t, conversations, 0)
 		})
@@ -217,7 +217,7 @@ func TestConversationService_RegisterRoutes(t *testing.T) {
 			// and that the service can handle route registration
 			assert.NotNil(t, conversationService)
 			assert.NotNil(t, conversationService.conversationCollection)
-			
+
 			// The actual route testing is covered in the handler tests above
 		})
 	})
@@ -227,14 +227,14 @@ func TestNewConversationService(t *testing.T) {
 	testutils.RunTestWithDB(t, func(testDB *testutils.TestDB) {
 		t.Run("Create new conversation service", func(t *testing.T) {
 			service := NewConversationService(testDB.ConvCol)
-			
+
 			assert.NotNil(t, service)
 			assert.Equal(t, testDB.ConvCol, service.conversationCollection)
 		})
 
 		t.Run("Create service with nil collection", func(t *testing.T) {
 			service := NewConversationService(nil)
-			
+
 			assert.NotNil(t, service)
 			assert.Nil(t, service.conversationCollection)
 		})

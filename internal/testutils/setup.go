@@ -3,7 +3,6 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"lite-chat-go/config"
 	"lite-chat-go/models"
 	"lite-chat-go/utils"
 	"log"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tryvium-travels/memongo"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -70,7 +68,7 @@ func (tdb *TestDB) Cleanup() {
 // ClearCollections removes all data from test collections
 func (tdb *TestDB) ClearCollections() error {
 	ctx := context.Background()
-	
+
 	if err := tdb.UserCol.Drop(ctx); err != nil {
 		return err
 	}
@@ -80,12 +78,12 @@ func (tdb *TestDB) ClearCollections() error {
 	if err := tdb.MsgCol.Drop(ctx); err != nil {
 		return err
 	}
-	
+
 	// Recreate collections
 	tdb.UserCol = tdb.Database.Collection("users")
 	tdb.ConvCol = tdb.Database.Collection("conversations")
 	tdb.MsgCol = tdb.Database.Collection("messages")
-	
+
 	return nil
 }
 
@@ -184,7 +182,7 @@ func AssertSuccessResponse(t *testing.T, data map[string]interface{}, expectedMe
 	assert.Contains(t, data, "data")
 }
 
-// AssertErrorResponse checks if response matches error format  
+// AssertErrorResponse checks if response matches error format
 func AssertErrorResponse(t *testing.T, data map[string]interface{}, expectedMessage string) {
 	assert.False(t, data["success"].(bool))
 	assert.Equal(t, expectedMessage, data["message"])
@@ -195,7 +193,7 @@ func AssertErrorResponse(t *testing.T, data map[string]interface{}, expectedMess
 func RunTestWithDB(t *testing.T, testFunc func(*TestDB)) {
 	// Setup test environment
 	SetupTestEnv()
-	
+
 	// Setup test database
 	testDB, err := SetupTestDB()
 	if err != nil {
