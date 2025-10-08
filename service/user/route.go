@@ -85,7 +85,6 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 	err = s.userCollection.FindOne(ctx, filter).Decode(&user)
 
 	if err != nil {
-		fmt.Println(err)
 		utils.WriteError(w, http.StatusNotFound, "Email or Password are incorrect")
 		return
 	}
@@ -96,7 +95,6 @@ func (s *UserService) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !utils.CheckPasswordHash(payload.Password, *user.Password) {
-		fmt.Println(err)
 		utils.WriteError(w, http.StatusNotFound, "Email or Password are incorrect")
 		return
 	}
@@ -130,7 +128,6 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -138,7 +135,6 @@ func (s *UserService) handleRegister(w http.ResponseWriter, r *http.Request) {
 	err = utils.Validate.Struct(payload)
 
 	if err != nil {
-		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
