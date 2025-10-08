@@ -25,6 +25,7 @@ type Config struct {
 	SessionSecret          string
 	BaseUrl                string
 	ClientBaseUrl          string
+	Environment            string
 }
 
 var Envs = initConfig()
@@ -49,6 +50,7 @@ func initConfig() Config {
 		SessionSecret:          getEnv("SESSION_SECRET", ""),
 		BaseUrl:                getEnv("BASE_URL", ""),
 		ClientBaseUrl:          getEnv("CLIENT_BASE_URL", ""),
+		Environment:            getEnv("ENVIRONMENT", "development"),
 	}
 
 }

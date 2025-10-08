@@ -9,9 +9,15 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"go.uber.org/zap"
 )
 
 var Validate = validator.New()
+var logger *zap.Logger
+
+func InitLogger(l *zap.Logger) {
+	logger = l
+}
 
 func RandomString(length int) string {
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -26,6 +32,7 @@ func RandomString(length int) string {
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Add("Content-Type", "Application/json")
 	w.WriteHeader(status)
+	logging(status, v)
 	return json.NewEncoder(w).Encode(v)
 }
 
@@ -63,4 +70,13 @@ func MapToJSON(data map[string]interface{}) (string, error) {
 		return "", err
 	}
 	return string(jsonBytes), nil
+}
+
+func logging(status int, v any) {
+
+	if status >= 400 {
+		logger.Error("Response", zap.Int("status", status), zap.Any("body", v))
+	} else {
+		logger.Info("Response", zap.Int("status", status), zap.Any("body", v.(map[string]any)["message"]))
+	}
 }

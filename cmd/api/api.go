@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"lite-chat-go/config"
+	"lite-chat-go/middlewares"
 	"lite-chat-go/service/conversation"
 	"lite-chat-go/service/message"
 	"lite-chat-go/service/user"
@@ -18,6 +19,7 @@ import (
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap"
 )
 
 type APIServer struct {
@@ -26,16 +28,18 @@ type APIServer struct {
 	messageCollection      *mongo.Collection
 	dbName                 string
 	port                   string
+	logger                 *zap.Logger
 }
 
 var store = sessions.NewCookieStore([]byte(config.Envs.SessionSecret))
 
-func NewAPIServer(userCollection *mongo.Collection, conversationCollection *mongo.Collection, messageCollection *mongo.Collection, dbName string, port string) *APIServer {
+func NewAPIServer(userCollection *mongo.Collection, conversationCollection *mongo.Collection, messageCollection *mongo.Collection, dbName string, port string, logger *zap.Logger) *APIServer {
 
 	return &APIServer{
 		userCollection:         userCollection,
 		conversationCollection: conversationCollection,
 		messageCollection:      messageCollection,
+		logger:                 logger,
 		dbName:                 dbName,
 		port:                   port,
 	}
@@ -49,6 +53,10 @@ func (s *APIServer) Run() error {
 	)
 
 	mainRouter := mux.NewRouter()
+
+	mainRouter.Use(middlewares.RecoveryMiddleware(s.logger))
+	mainRouter.Use(middlewares.ZapRequestLogger(s.logger))
+
 	router := mainRouter.PathPrefix("/api").Subrouter()
 	router.HandleFunc("/health", s.healthCheck).Methods(http.MethodGet)
 

@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"lite-chat-go/cmd/api"
 	"lite-chat-go/config"
+	"lite-chat-go/utils"
 	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 )
 
 var (
@@ -70,7 +72,7 @@ func init() {
 
 	// Create sparse unique index on googleId
 	mod := mongo.IndexModel{
-		Keys: bson.D{{Key: "googleId", Value: 1}},
+		Keys:    bson.D{{Key: "googleId", Value: 1}},
 		Options: options.Index().SetUnique(true).SetSparse(true).SetName("googleId_sparse_unique"),
 	}
 
@@ -83,12 +85,24 @@ func init() {
 }
 
 func main() {
+
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+
+	logger.Info("Starting Lite Chat API server...",
+		zap.String("environment", config.Envs.Environment),
+		zap.Int("port", 8080),
+	)
+
+	utils.InitLogger(logger)
+
 	server := api.NewAPIServer(
 		userCollection,
 		conversationCollection,
 		messageCollection,
 		config.Envs.Database,
 		config.Envs.Port,
+		logger,
 	)
 	if err := server.Run(); err != nil {
 		log.Fatal(err)

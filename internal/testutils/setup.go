@@ -29,7 +29,7 @@ type TestDB struct {
 
 // SetupTestDB creates an in-memory MongoDB instance for testing
 func SetupTestDB() (*TestDB, error) {
-	mongoServer, err := memongo.Start("4.0.5")
+	mongoServer, err := memongo.Start("6.0.5")
 	if err != nil {
 		return nil, fmt.Errorf("failed to start memongo: %w", err)
 	}
