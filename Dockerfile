@@ -1,24 +1,29 @@
-# Build stage
-FROM golang:alpine
+# Stage 1: Build
+FROM golang:1.23-alpine AS builder
 
-RUN apk update && apk add --no-cache git make
+RUN apk update && apk add --no-cache git
 
 WORKDIR /app
 
-# Install air for live reloading
-RUN go install github.com/air-verse/air@latest
-
-# Copy go mod and sum files
+# Copy go.mod and download dependencies
 COPY go.mod ./
-
-# Download dependencies
 RUN go mod download
 
-# Copy the entire project
+# Copy source code
 COPY . .
 
-# Build the application with debug information
-RUN go build -o ./tmp/main ./cmd/main.go
+# Build the Go app (statically linked binary)
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
+
+# Stage 2: Run
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/main .
 
 # Expose port
 EXPOSE 8085
@@ -26,5 +31,5 @@ EXPOSE 8085
 # Set environment variable for Gin mode
 ENV GIN_MODE=release
 
-# Run executable
-CMD ["air", "-c", ".air.toml"]
+# Run the binary
+CMD ["./main"]
